@@ -1,0 +1,261 @@
+import openpyxl
+from openpyxl import load_workbook
+from colorama import Fore, Back, Style, init
+import os
+
+# Initialize colorama
+init(autoreset=True)
+
+# File and workbook setup
+file_name = "inventory.xlsx"
+if not os.path.exists(file_name):
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Inventory"
+    sheet.append(["Category", "Subcategory", "Bike Model", "Product Name", "Price", "Quantity"])
+    workbook.save(file_name)
+else:
+    workbook = load_workbook(file_name)
+    sheet = workbook["Inventory"]
+
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def display_banner():
+    banner = """
+    \033[1;32m█████   █████   █████████   ███████████   █████
+    ░░███   ░░███   ███░░░░░███ ░░███░░░░░███ ░░███ 
+     ░███    ░███  ░███    ░███  ░███    ░███  ░███ 
+     ░███████████  ░███████████  ░██████████   ░███ 
+     ░███░░░░░███  ░███░░░░░███  ░███░░░░░███  ░███ 
+     ░███    ░███  ░███    ░███  ░███    ░███  ░███ 
+     █████   █████ █████   █████ █████   █████ █████
+    ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░   ░░░░░ ░░░░░ 
+
+                    \033[1;33mI N V E N T O R Y  S Y S T E M\033[0m
+    """
+    print(Style.BRIGHT + Fore.CYAN + banner)
+
+
+def validate_input(prompt, input_type, validation_func=lambda x: True):
+    while True:
+        try:
+            value = input_type(input(prompt))
+            if validation_func(value):
+                return value
+            else:
+                print(Fore.RED + "Invalid input. Please try again.")
+        except ValueError:
+            print(Fore.RED + "Invalid input type. Please try again.")
+
+def list_all_products():
+    clear_screen()
+    display_banner()
+    print(Fore.YELLOW + "\nAll Products in Inventory:\n")
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        print(Fore.GREEN + f"Category: {row[0]}, Subcategory: {row[1]}, Bike Model: {row[2]}, Name: {row[3]}, Price: {row[4]}, Quantity: {row[5]}")
+    input("\nPress Enter to return to the main menu...")
+
+def check_item():
+    clear_screen()
+    display_banner()
+    product_name = input(Fore.GREEN + "Enter product name to check: ").strip()
+    category = input(Fore.GREEN + "Enter category: ").strip()
+    bike_model = input(Fore.GREEN + "Enter bike model: ").strip()
+
+    for row in sheet.iter_rows(min_row=2):
+        if (isinstance(row[0].value, str) and row[0].value.lower() == category.lower() and
+            isinstance(row[2].value, str) and row[2].value.lower() == bike_model.lower() and
+            isinstance(row[3].value, str) and row[3].value.lower() == product_name.lower()):
+            print(Fore.GREEN + f"\nProduct found: {row[3].value}")
+            print(Fore.CYAN + f"Category: {row[0].value}, Subcategory: {row[1].value}")
+            print(Fore.CYAN + f"Price: {row[4].value}, Quantity: {row[5].value}")
+            break
+    else:
+        print(Fore.RED + "Product not found in the inventory.")
+    input("\nPress Enter to return to the main menu...")
+
+def add_product():
+    clear_screen()
+    display_banner()
+    category = input(Fore.GREEN + "Enter category: ").strip()
+    subcategory = input(Fore.GREEN + "Enter subcategory: ").strip()
+    bike_model = input(Fore.GREEN + "Enter bike model: ").strip()
+    product_name = input(Fore.GREEN + "Enter product name: ").strip()
+    price = validate_input("Enter price: ", float, lambda x: x > 0)
+    quantity = validate_input("Enter quantity: ", int, lambda x: x >= 0)
+
+    # Check if product already exists with the same name in the same category
+    for row in sheet.iter_rows(min_row=2):
+        if (isinstance(row[0].value, str) and row[0].value.lower() == category.lower() and
+            isinstance(row[2].value, str) and row[2].value.lower() == bike_model.lower() and
+            isinstance(row[3].value, str) and row[3].value.lower() == product_name.lower()):
+            print(Fore.RED + "Product already exists in this category and bike model. Use 'Increase Stock' option to update quantity.")
+            return
+
+    sheet.append([category, subcategory, bike_model, product_name, price, quantity])
+    workbook.save(file_name)
+    print(Fore.GREEN + "\nProduct added successfully!")
+    input("\nPress Enter to return to the main menu...")
+
+def increase_stock():
+    clear_screen()
+    display_banner()
+    product_name = input(Fore.GREEN + "Enter product name to increase stock: ").strip()
+    category = input(Fore.GREEN + "Enter category: ").strip()
+    bike_model = input(Fore.GREEN + "Enter bike model: ").strip()
+    quantity = validate_input("Enter quantity to add: ", int, lambda x: x > 0)
+
+    for row in sheet.iter_rows(min_row=2):
+        if (isinstance(row[0].value, str) and row[0].value.lower() == category.lower() and
+            isinstance(row[2].value, str) and row[2].value.lower() == bike_model.lower() and
+            isinstance(row[3].value, str) and row[3].value.lower() == product_name.lower()):
+            current_quantity = row[5].value
+            row[5].value = current_quantity + quantity
+            workbook.save(file_name)
+            print(Fore.GREEN + f"\nStock for '{product_name}' in category '{category}' and bike model '{bike_model}' increased by {quantity}.")
+            break
+    else:
+        print(Fore.RED + "Product not found in the inventory.")
+    input("\nPress Enter to return to the main menu...")
+
+def reduce_stock():
+    clear_screen()
+    display_banner()
+    product_name = input(Fore.GREEN + "Enter product name to reduce stock: ").strip()
+    category = input(Fore.GREEN + "Enter category: ").strip()
+    bike_model = input(Fore.GREEN + "Enter bike model: ").strip()
+    quantity = validate_input("Enter quantity to reduce: ", int, lambda x: x > 0)
+
+    for row in sheet.iter_rows(min_row=2):
+        if (isinstance(row[0].value, str) and row[0].value.lower() == category.lower() and
+            isinstance(row[2].value, str) and row[2].value.lower() == bike_model.lower() and
+            isinstance(row[3].value, str) and row[3].value.lower() == product_name.lower()):
+            current_quantity = row[5].value
+            if current_quantity >= quantity:
+                row[5].value = current_quantity - quantity
+                workbook.save(file_name)
+                print(Fore.GREEN + f"\nStock for '{product_name}' in category '{category}' and bike model '{bike_model}' reduced by {quantity}.")
+            else:
+                print(Fore.RED + f"Not enough stock to reduce by {quantity}. Available: {current_quantity}")
+            break
+    else:
+        print(Fore.RED + "Product not found in the inventory.")
+    input("\nPress Enter to return to the main menu...")
+
+def search_products():
+    clear_screen()
+    display_banner()
+    search_name = input(Fore.GREEN + "Enter product name or part of name to search: ").strip()
+    search_category = input(Fore.GREEN + "Enter category to search: ").strip()
+
+    print(Fore.YELLOW + "\nSearch Results:")
+    found = False
+    for row in sheet.iter_rows(min_row=2):
+        if (isinstance(row[0].value, str) and row[0].value.lower() == search_category.lower() and
+            isinstance(row[3].value, str) and search_name.lower() in row[3].value.lower()):
+            found = True
+            print(Fore.CYAN + f"Category: {row[0].value}, Subcategory: {row[1].value}, Bike Model: {row[2].value}, Name: {row[3].value}, Price: {row[4].value}, Quantity: {row[5].value}")
+    
+    if not found:
+        print(Fore.RED + "No products found matching the search criteria.")
+    input("\nPress Enter to return to the main menu...")
+
+def view_inventory_summary():
+    clear_screen()
+    display_banner()
+    total_items = 0
+    total_value = 0
+
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        total_items += row[5]
+        total_value += row[4] * row[5]
+
+    print(Fore.YELLOW + f"\nTotal Number of Items: {total_items}")
+    print(Fore.YELLOW + f"Total Inventory Value: {total_value:.2f}")
+    input("\nPress Enter to return to the main menu...")
+
+def delete_product():
+    clear_screen()
+    display_banner()
+    product_name = input(Fore.GREEN + "Enter product name to delete: ").strip()
+    category = input(Fore.GREEN + "Enter category: ").strip()
+    bike_model = input(Fore.GREEN + "Enter bike model: ").strip()
+
+    for row in sheet.iter_rows(min_row=2):
+        if (isinstance(row[0].value, str) and row[0].value.lower() == category.lower() and
+            isinstance(row[2].value, str) and row[2].value.lower() == bike_model.lower() and
+            isinstance(row[3].value, str) and row[3].value.lower() == product_name.lower()):
+            sheet.delete_rows(row[0].row)
+            workbook.save(file_name)
+            print(Fore.GREEN + f"\nProduct '{product_name}' in category '{category}' and bike model '{bike_model}' deleted successfully.")
+            break
+    else:
+        print(Fore.RED + "Product not found in the inventory.")
+    input("\nPress Enter to return to the main menu...")
+
+def update_product():
+    clear_screen()
+    display_banner()
+    product_name = input(Fore.GREEN + "Enter product name to update: ").strip()
+    category = input(Fore.GREEN + "Enter category: ").strip()
+    bike_model = input(Fore.GREEN + "Enter bike model: ").strip()
+
+    for row in sheet.iter_rows(min_row=2):
+        if (isinstance(row[0].value, str) and row[0].value.lower() == category.lower() and
+            isinstance(row[2].value, str) and row[2].value.lower() == bike_model.lower() and
+            isinstance(row[3].value, str) and row[3].value.lower() == product_name.lower()):
+            print(Fore.GREEN + "Product found. Update the details:")
+            row[0].value = input("Enter new category: ").strip()
+            row[1].value = input("Enter new subcategory: ").strip()
+            row[2].value = input("Enter new bike model: ").strip()
+            row[3].value = input("Enter new product name: ").strip()
+            row[4].value = validate_input("Enter new price: ", float, lambda x: x > 0)
+            row[5].value = validate_input("Enter new quantity: ", int, lambda x: x >= 0)
+            workbook.save(file_name)
+            print(Fore.GREEN + "\nProduct updated successfully!")
+            break
+    else:
+        print(Fore.RED + "Product not found in the inventory.")
+    input("\nPress Enter to return to the main menu...")
+
+def main_menu():
+    while True:
+        clear_screen()
+        display_banner()
+        print(Fore.GREEN + Style.BRIGHT + "1. List All Products")
+        print(Fore.GREEN + "2. Check Item")
+        print(Fore.GREEN + "3. Add Product")
+        print(Fore.GREEN + "4. Increase Stock")
+        print(Fore.GREEN + "5. Reduce Stock")
+        print(Fore.GREEN + "6. Search Products")
+        print(Fore.GREEN + "7. Delete Product")
+        print(Fore.GREEN + "8. Update Product")
+        print(Fore.RED + "0. Exit")
+        
+        choice = validate_input("\nEnter your choice: ", int, lambda x: 0 <= x <= 9)
+        
+        if choice == 1:
+            list_all_products()
+        elif choice == 2:
+            check_item()
+        elif choice == 3:
+            add_product()
+        elif choice == 4:
+            increase_stock()
+        elif choice == 5:
+            reduce_stock()
+        elif choice == 6:
+            search_products()
+        elif choice == 7:
+            view_inventory_summary()
+        elif choice == 8:
+            delete_product()
+        elif choice == 9:
+            update_product()
+        elif choice == 0:
+            print(Fore.RED + "Exiting program...")
+            break
+
+if __name__ == "__main__":
+    main_menu()
